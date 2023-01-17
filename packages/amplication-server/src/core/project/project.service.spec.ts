@@ -27,6 +27,7 @@ import { CURRENT_VERSION_NUMBER } from "../entity/constants";
 import { BlockService } from "../block/block.service";
 import { ConfigService } from "@nestjs/config";
 import { BillingService } from "../billing/billing.service";
+import { prepareDeletedItemName } from "../../util/softDelete";
 
 /** values mock */
 const EXAMPLE_USER_ID = "exampleUserId";
@@ -180,6 +181,15 @@ const EXAMPLE_PROJECT: Project = {
 const EXAMPLE_PROJECT_CONFIGURATION = {};
 
 /** methods mock */
+const prismaProjectUpdateMock = jest.fn(() => {
+  return EXAMPLE_PROJECT;
+});
+const prismaProjectFindFirstMock = jest.fn(() => {
+  return EXAMPLE_PROJECT;
+});
+const prismaProjectFindManyMock = jest.fn(() => {
+  return [EXAMPLE_PROJECT];
+});
 const prismaResourceCreateMock = jest.fn(() => {
   return EXAMPLE_RESOURCE;
 });
@@ -248,9 +258,9 @@ describe("ProjectService", () => {
               create: prismaCommitCreateMock,
             },
             project: {
-              findMany: jest.fn(() => {
-                return [EXAMPLE_PROJECT];
-              }),
+              findMany: prismaProjectFindManyMock,
+              findFirst: prismaProjectFindFirstMock,
+              update: prismaProjectUpdateMock,
             },
           })),
         },
@@ -280,6 +290,7 @@ describe("ProjectService", () => {
           provide: ResourceService,
           useClass: jest.fn(() => ({
             createProjectConfiguration: createProjectConfigurationMock,
+            deleteProjectResources: jest.fn(() => Promise.resolve([])),
           })),
         },
       ],
@@ -397,5 +408,19 @@ describe("ProjectService", () => {
     );
     expect(buildServiceCreateMock).toBeCalledTimes(1);
     expect(buildServiceCreateMock).toBeCalledWith(buildCreateArgs, false);
+  });
+
+  it("should delete a project", async () => {
+    const args = { where: { id: EXAMPLE_PROJECT_ID } };
+    const dateSpy = jest.spyOn(global, "Date");
+    expect(await service.deleteProject(args)).toEqual(EXAMPLE_PROJECT);
+    expect(prismaProjectUpdateMock).toBeCalledTimes(1);
+    expect(prismaProjectUpdateMock).toBeCalledWith({
+      ...args,
+      data: {
+        deletedAt: dateSpy.mock.instances[0],
+        name: prepareDeletedItemName(EXAMPLE_PROJECT.name, EXAMPLE_PROJECT.id),
+      },
+    });
   });
 });
