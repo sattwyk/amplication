@@ -2,6 +2,7 @@ import { PrismaService, EnumResourceType } from "../../prisma";
 import { Injectable } from "@nestjs/common";
 import { FindOneArgs } from "../../dto";
 import { Commit, Project, Resource, User } from "../../models";
+import { prepareDeletedItemName } from "../../util/softDelete";
 import { ResourceService, EntityService } from "../";
 import { BlockService } from "../block/block.service";
 import { BuildService } from "../build/build.service";
@@ -22,6 +23,8 @@ import { BillingService } from "../billing/billing.service";
 import { BillingFeature } from "../billing/BillingFeature";
 import { ValidationError } from "../../errors/ValidationError";
 import { FeatureUsageReport } from "./FeatureUsageReport";
+
+export const INVALID_PROJECT_ID = "Invalid projectId";
 
 @Injectable()
 export class ProjectService {
@@ -80,6 +83,24 @@ export class ProjectService {
     );
 
     return project;
+  }
+
+  async deleteProject(args: FindOneArgs): Promise<Project> {
+    const project = await this.prisma.project.findUnique(args);
+
+    if (isEmpty(project)) {
+      throw new Error(INVALID_PROJECT_ID);
+    }
+
+    await this.resourceService.deleteProjectResources(args);
+
+    return this.prisma.project.update({
+      where: args.where,
+      data: {
+        name: prepareDeletedItemName(project.name, project.id),
+        deletedAt: new Date(),
+      },
+    });
   }
 
   async updateProject(args: UpdateProjectArgs): Promise<Project> {

@@ -40,6 +40,7 @@ export enum AnalyticsEventNames {
   // project & project configuration
   ProjectConfigurationsSettingsUpdate = "updateProjectConfigurationsSettings",
   ProjectCreate = "createProject",
+  ProjectDelete = "deleteProject",
 
   // service
   ServiceSettingsUpdate = "updateServiceSettings",

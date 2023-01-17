@@ -426,6 +426,64 @@ export class ResourceService {
     await this.deleteResourceGitRepository(resource);
   }
 
+  async deleteProjectResources(args: FindOneArgs): Promise<Resource[]> {
+    let deletedServiceCount = 0;
+    const { resources, workspace } = await this.prisma.project.findUnique({
+      ...args,
+      include: {
+        workspace: true,
+        resources: {
+          include: {
+            gitRepository: true,
+          },
+        },
+      },
+    });
+
+    for (const resource of resources) {
+      if (isEmpty(resource)) {
+        throw new Error(INVALID_RESOURCE_ID);
+      }
+
+      if (resource.resourceType === EnumResourceType.Service) {
+        deletedServiceCount--;
+      }
+    }
+
+    const deleteResources = resources.map((resource) =>
+      this.prisma.resource.update({
+        where: { id: resource.id },
+        data: {
+          name: prepareDeletedItemName(resource.name, resource.id),
+          deletedAt: new Date(),
+          gitRepository: {
+            disconnect: true,
+          },
+        },
+      })
+    );
+    const deletedResources = await this.prisma.$transaction(deleteResources);
+
+    if (this.isBillingEnabled) {
+      await this.billingService.reportUsage(
+        workspace.id,
+        BillingFeature.Services,
+        deletedServiceCount
+      );
+    }
+
+    await Promise.all(
+      resources.reduce((all: Promise<Resource>[], resource) => {
+        if (resource.gitRepositoryOverride) {
+          all.push(this.deleteResourceGitRepository(resource));
+        }
+        return all;
+      }, [])
+    );
+
+    return deletedResources;
+  }
+
   async deleteResourceGitRepository(resource: Resource): Promise<Resource> {
     const gitRepo = await this.prisma.gitRepository.findFirst({
       where: {
