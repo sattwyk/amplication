@@ -350,6 +350,18 @@ const environmentServiceCreateDefaultEnvironmentMock = jest.fn(() => {
   return EXAMPLE_ENVIRONMENT;
 });
 
+const projectFindUniqueMock = jest.fn(() => ({
+  resources: [EXAMPLE_RESOURCE, EXAMPLE_PROJECT_CONFIGURATION_RESOURCE],
+  workspace: {
+    id: EXAMPLE_WORKSPACE_ID,
+  },
+}));
+
+const prismaTransactionMock = jest.fn(() => [
+  EXAMPLE_RESOURCE,
+  EXAMPLE_PROJECT_CONFIGURATION_RESOURCE,
+]);
+
 jest.mock("cuid");
 // eslint-disable-next-line
 // @ts-ignore
@@ -408,6 +420,7 @@ describe("ResourceService", () => {
             resourceRole: {
               create: prismaResourceRoleCreateMock,
             },
+            $transaction: prismaTransactionMock,
           })),
         },
         {
@@ -466,7 +479,9 @@ describe("ResourceService", () => {
         },
         {
           provide: ProjectService,
-          useClass: jest.fn(() => ({})),
+          useClass: jest.fn(() => ({
+            findUnique: projectFindUniqueMock,
+          })),
         },
       ],
     }).compile();
@@ -674,6 +689,31 @@ describe("ResourceService", () => {
     await expect(service.deleteResource(args)).rejects.toThrow(
       new Error(INVALID_DELETE_PROJECT_CONFIGURATION)
     );
+  });
+
+  it("should delete ALL resources of a project", async () => {
+    const args = { where: { id: EXAMPLE_PROJECT_ID } };
+    const dateSpy = jest.spyOn(global, "Date");
+    expect(await service.deleteProjectResources(args)).toEqual(
+      expect.arrayContaining([
+        EXAMPLE_RESOURCE,
+        EXAMPLE_PROJECT_CONFIGURATION_RESOURCE,
+      ])
+    );
+    expect(prismaResourceUpdateMock).toBeCalledTimes(2);
+    expect(prismaResourceUpdateMock).toBeCalledWith({
+      where: { id: EXAMPLE_RESOURCE.id },
+      data: {
+        deletedAt: dateSpy.mock.instances[0],
+        name: prepareDeletedItemName(
+          EXAMPLE_RESOURCE.name,
+          EXAMPLE_RESOURCE.id
+        ),
+        gitRepository: {
+          disconnect: true,
+        },
+      },
+    });
   });
 
   it("should update a resource", async () => {

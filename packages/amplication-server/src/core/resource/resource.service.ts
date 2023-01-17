@@ -428,7 +428,7 @@ export class ResourceService {
 
   async deleteProjectResources(args: FindOneArgs): Promise<Resource[]> {
     let deletedServiceCount = 0;
-    const { resources, workspace } = await this.prisma.project.findUnique({
+    const { resources, workspace } = await this.projectService.findUnique({
       ...args,
       include: {
         workspace: true,
@@ -441,7 +441,7 @@ export class ResourceService {
           },
         },
       },
-    });
+    } as FindOneArgs);
 
     for (const resource of resources) {
       if (isEmpty(resource)) {
