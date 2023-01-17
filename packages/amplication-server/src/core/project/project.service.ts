@@ -86,7 +86,12 @@ export class ProjectService {
   }
 
   async deleteProject(args: FindOneArgs): Promise<Project> {
-    const project = await this.prisma.project.findUnique(args);
+    const project = await this.findFirst({
+      where: {
+        id: args.where.id,
+        deletedAt: null,
+      },
+    });
 
     if (isEmpty(project)) {
       throw new Error(INVALID_PROJECT_ID);

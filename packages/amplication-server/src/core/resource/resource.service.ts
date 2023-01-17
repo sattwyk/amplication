@@ -433,6 +433,9 @@ export class ResourceService {
       include: {
         workspace: true,
         resources: {
+          where: {
+            deletedAt: null,
+          },
           include: {
             gitRepository: true,
           },
