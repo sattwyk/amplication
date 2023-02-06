@@ -20,6 +20,7 @@
     "local-dsg-runner": "packages/local-dsg-runner",
     "util-code-gen-utils": "libs/util/code-gen-utils",
     "util-kafka": "libs/util/kafka",
+    "util-logging": "libs/util/logging",
     "util-nestjs-kafka": "libs/util/nestjs/kafka"
   }
 }
